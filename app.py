@@ -1,80 +1,63 @@
 import streamlit as st
-import pdfplumber
+import requests
+from bs4 import BeautifulSoup
+from selenium import webdriver
+from selenium.webdriver.chrome.service import Service
+from selenium.webdriver.common.by import By
+from selenium.webdriver.chrome.options import Options
+import time
 import re
-import pandas as pd
 
-# Function to clean extracted numbers
-def clean_number(value):
-    if value == "N/A" or value is None:
-        return None
-    return float(value.replace(",", "").strip())
+# Function to extract Gig ID from URL
+def extract_gig_id(gig_url):
+    match = re.search(r'\/([^\/]+)-\d+$', gig_url)
+    return match.group(1) if match else None
 
-# Function to extract financial metrics from PDF
-def extract_financials(pdf_file):
-    with pdfplumber.open(pdf_file) as pdf:
-        text = "\n".join([page.extract_text() for page in pdf.pages if page.extract_text()])
+# Function to get Fiverr search results
+def get_fiverr_rank(keyword, gig_id):
+    chrome_options = Options()
+    chrome_options.add_argument("--headless")  # Run in headless mode
+    chrome_options.add_argument("--disable-gpu")
     
-    # 🔹 Print extracted text for debugging
-    st.text("🔍 Extracted Text from PDF:")
-    st.text(text[:1000])  # Print first 1000 characters to check formatting
+    service = Service(executable_path="chromedriver")  # Use the correct path to your chromedriver
+    driver = webdriver.Chrome(service=service, options=chrome_options)
 
-    # 🔹 Improved regex patterns (handling variations in text format)
-    profit = re.findall(r"Profit after tax\s*[:\s]+([\d,]+)", text, re.IGNORECASE)
-    eps = re.findall(r"Earnings per share\s*\(Rs\.\)\s*[:\s]*([\d.]+)", text, re.IGNORECASE)
-    cash = re.findall(r"Bank balances\s*[:\s]+([\d,]+)", text, re.IGNORECASE)
+    search_url = f"https://www.fiverr.com/search/gigs?query={keyword}"
+    driver.get(search_url)
 
-    return {
-        "Profit After Tax": clean_number(profit[0]) if profit else None,
-        "Earnings Per Share (EPS)": clean_number(eps[0]) if eps else None,
-        "Cash & Bank Balances": clean_number(cash[0]) if cash else None
-    }
+    gig_found = False
+    gig_position = -1
 
-# Function to calculate growth/decline
-def calculate_growth(current, previous):
-    if current is None or previous is None:
-        return "Data Missing"
-    growth = ((current - previous) / previous) * 100
-    return f"{growth:.2f}% {'Growth' if growth > 0 else 'Decline'}"
+    for page in range(1, 6):  # Search up to 5 pages
+        time.sleep(3)  # Allow page to load
 
-# Function to estimate stock price using P/E ratio
-def estimate_stock_price(eps, industry_pe):
-    if eps is None:
-        return "EPS Data Missing"
-    return round(eps * industry_pe, 2)
+        # Get page source and parse with BeautifulSoup
+        soup = BeautifulSoup(driver.page_source, "html.parser")
+        gigs = soup.find_all("a", class_="gig-link")  # Fiverr gig links
+        
+        for index, gig in enumerate(gigs, start=1):
+            if gig_id in gig["href"]:
+                gig_found = True
+                gig_position = ((page - 1) * len(gigs)) + index
+                break
+
+        if gig_found:
+            break
+
+        # Click "Next Page" if exists
+        next_page = driver.find_element(By.CSS_SELECTOR, "a[rel='next']")
+        if next_page:
+            next_page.click()
+        else:
+            break
+
+    driver.quit()
+    
+    return gig_position if gig_found else "Not in first 5 pages"
 
 # Streamlit UI
-st.title("📊 Stock Financial Report Analyzer")
-st.write("Upload a financial report, and we'll extract key financial metrics!")
+st.title("🛠️ Fiverr Gig Rank Tracker")
+st.write("Enter your Fiverr Gig URL and the keyword you want to track.")
 
-# File uploader
-pdf_file = st.file_uploader("Upload a Financial Report (PDF)", type=["pdf"])
-
-# User input for industry P/E ratio
-industry_pe = st.number_input("Enter Industry P/E Ratio:", min_value=1.0, max_value=50.0, value=10.0)
-
-# **Previous Year Data** (From Financial Report)
-previous_data = {
-    "Profit After Tax": clean_number("1,602,379"),
-    "Earnings Per Share (EPS)": clean_number("12.91"),
-    "Cash & Bank Balances": clean_number("22,215,531")
-}
-
-if pdf_file:
-    # Extract financial data from PDF
-    financial_data = extract_financials(pdf_file)
-
-    # Calculate growth
-    growth_results = {key: calculate_growth(financial_data[key], previous_data[key]) for key in financial_data}
-
-    # Estimate stock price
-    expected_price = estimate_stock_price(financial_data["Earnings Per Share (EPS)"], industry_pe)
-
-    # Display Results
-    st.subheader("📈 Extracted Financial Data")
-    st.write(pd.DataFrame(financial_data.items(), columns=["Metric", "Value"]))
-
-    st.subheader("📊 Growth/Decline Analysis")
-    st.write(pd.DataFrame(growth_results.items(), columns=["Metric", "Growth"]))
-
-    st.subheader("💰 Expected Stock Price")
-    st.write(f"Estimated Fair Value of Stock: **Rs. {expected_price}**")
+# User Inputs
+gig_u
