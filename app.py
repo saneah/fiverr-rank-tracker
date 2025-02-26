@@ -14,10 +14,14 @@ def extract_financials(pdf_file):
     with pdfplumber.open(pdf_file) as pdf:
         text = "\n".join([page.extract_text() for page in pdf.pages if page.extract_text()])
     
-    # Use regex to extract key financial data
-    profit = re.findall(r"Profit after tax\s+([\d,]+)", text)
-    eps = re.findall(r"Earnings per share\s*\(Rs.\)\s*([\d.]+)", text)
-    cash = re.findall(r"Bank balances\s+([\d,]+)", text)
+    # 🔹 Print extracted text for debugging
+    st.text("🔍 Extracted Text from PDF:")
+    st.text(text[:1000])  # Print first 1000 characters to check formatting
+
+    # 🔹 Improved regex patterns (handling variations in text format)
+    profit = re.findall(r"Profit after tax\s*[:\s]+([\d,]+)", text, re.IGNORECASE)
+    eps = re.findall(r"Earnings per share\s*\(Rs\.\)\s*[:\s]*([\d.]+)", text, re.IGNORECASE)
+    cash = re.findall(r"Bank balances\s*[:\s]+([\d,]+)", text, re.IGNORECASE)
 
     return {
         "Profit After Tax": clean_number(profit[0]) if profit else None,
