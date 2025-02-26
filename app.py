@@ -3,30 +3,26 @@ import pdfplumber
 import re
 import pandas as pd
 
-# Function to clean extracted financial numbers
+# Function to clean extracted numbers
 def clean_number(value):
     if value == "N/A" or value is None:
         return None
-    return float(value.replace(",", ""))  # Remove commas and convert to float
+    return float(value.replace(",", "").strip())
 
-# Function to extract financial metrics from the PDF
+# Function to extract financial metrics from PDF
 def extract_financials(pdf_file):
     with pdfplumber.open(pdf_file) as pdf:
         text = "\n".join([page.extract_text() for page in pdf.pages if page.extract_text()])
     
     # Use regex to extract key financial data
-    revenue = re.findall(r"Revenue\s+([\d,]+)", text)
-    gross_profit = re.findall(r"Gross Profit\s+([\d,]+)", text)
-    operating_profit = re.findall(r"Operating Profit\s+([\d,]+)", text)
-    net_profit = re.findall(r"Profit for the year\s+([\d,]+)", text)
+    profit = re.findall(r"Profit after tax\s+([\d,]+)", text)
     eps = re.findall(r"Earnings per share\s*\(Rs.\)\s*([\d.]+)", text)
+    cash = re.findall(r"Bank balances\s+([\d,]+)", text)
 
     return {
-        "Revenue": clean_number(revenue[0]) if revenue else None,
-        "Gross Profit": clean_number(gross_profit[0]) if gross_profit else None,
-        "Operating Profit": clean_number(operating_profit[0]) if operating_profit else None,
-        "Net Profit": clean_number(net_profit[0]) if net_profit else None,
-        "EPS": clean_number(eps[0]) if eps else None
+        "Profit After Tax": clean_number(profit[0]) if profit else None,
+        "Earnings Per Share (EPS)": clean_number(eps[0]) if eps else None,
+        "Cash & Bank Balances": clean_number(cash[0]) if cash else None
     }
 
 # Function to calculate growth/decline
@@ -52,13 +48,11 @@ pdf_file = st.file_uploader("Upload a Financial Report (PDF)", type=["pdf"])
 # User input for industry P/E ratio
 industry_pe = st.number_input("Enter Industry P/E Ratio:", min_value=1.0, max_value=50.0, value=10.0)
 
-# **Previous Year Data** (Manually entered for now, can be automated later)
+# **Previous Year Data** (From Financial Report)
 previous_data = {
-    "Revenue": clean_number("9,413,149"),
-    "Gross Profit": clean_number("1,133,637"),
-    "Operating Profit": clean_number("888,836"),
-    "Net Profit": clean_number("365,035"),
-    "EPS": clean_number("6.40")
+    "Profit After Tax": clean_number("1,602,379"),
+    "Earnings Per Share (EPS)": clean_number("12.91"),
+    "Cash & Bank Balances": clean_number("22,215,531")
 }
 
 if pdf_file:
@@ -69,7 +63,7 @@ if pdf_file:
     growth_results = {key: calculate_growth(financial_data[key], previous_data[key]) for key in financial_data}
 
     # Estimate stock price
-    expected_price = estimate_stock_price(financial_data["EPS"], industry_pe)
+    expected_price = estimate_stock_price(financial_data["Earnings Per Share (EPS)"], industry_pe)
 
     # Display Results
     st.subheader("📈 Extracted Financial Data")
