@@ -60,4 +60,19 @@ st.title("🛠️ Fiverr Gig Rank Tracker")
 st.write("Enter your Fiverr Gig URL and the keyword you want to track.")
 
 # User Inputs
-gig_u
+gig_url = st.text_input("🔗 Fiverr Gig URL:", placeholder="https://www.fiverr.com/your-gig-url")
+keyword = st.text_input("🔍 Keyword to Search:", placeholder="e.g. logo design")
+
+if st.button("Check Rank"):
+    if gig_url and keyword:
+        gig_id = extract_gig_id(gig_url)
+        
+        if gig_id:
+            st.write("🔄 Searching Fiverr for your gig... (This may take a few seconds)")
+            gig_rank = get_fiverr_rank(keyword, gig_id)
+            st.success(f"🎯 Your gig is at position: **{gig_rank}**")
+        else:
+            st.error("⚠️ Invalid Fiverr gig URL. Please enter a correct URL.")
+    else:
+        st.error("⚠️ Please enter both the Fiverr Gig URL and the keyword.")
+
