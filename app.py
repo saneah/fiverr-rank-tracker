@@ -3,6 +3,12 @@ import pdfplumber
 import re
 import pandas as pd
 
+# Function to clean extracted financial numbers
+def clean_number(value):
+    if value == "N/A" or value is None:
+        return None
+    return float(value.replace(",", ""))  # Remove commas and convert to float
+
 # Function to extract financial metrics from the PDF
 def extract_financials(pdf_file):
     with pdfplumber.open(pdf_file) as pdf:
@@ -16,26 +22,24 @@ def extract_financials(pdf_file):
     eps = re.findall(r"Earnings per share\s*\(Rs.\)\s*([\d.]+)", text)
 
     return {
-        "Revenue": revenue[0] if revenue else "N/A",
-        "Gross Profit": gross_profit[0] if gross_profit else "N/A",
-        "Operating Profit": operating_profit[0] if operating_profit else "N/A",
-        "Net Profit": net_profit[0] if net_profit else "N/A",
-        "EPS": eps[0] if eps else "N/A"
+        "Revenue": clean_number(revenue[0]) if revenue else None,
+        "Gross Profit": clean_number(gross_profit[0]) if gross_profit else None,
+        "Operating Profit": clean_number(operating_profit[0]) if operating_profit else None,
+        "Net Profit": clean_number(net_profit[0]) if net_profit else None,
+        "EPS": clean_number(eps[0]) if eps else None
     }
 
 # Function to calculate growth/decline
 def calculate_growth(current, previous):
-    if current == "N/A" or previous == "N/A":
+    if current is None or previous is None:
         return "Data Missing"
-    current, previous = float(current.replace(",", "")), float(previous.replace(",", ""))
     growth = ((current - previous) / previous) * 100
     return f"{growth:.2f}% {'Growth' if growth > 0 else 'Decline'}"
 
 # Function to estimate stock price using P/E ratio
 def estimate_stock_price(eps, industry_pe):
-    if eps == "N/A":
+    if eps is None:
         return "EPS Data Missing"
-    eps = float(eps)
     return round(eps * industry_pe, 2)
 
 # Streamlit UI
@@ -48,13 +52,13 @@ pdf_file = st.file_uploader("Upload a Financial Report (PDF)", type=["pdf"])
 # User input for industry P/E ratio
 industry_pe = st.number_input("Enter Industry P/E Ratio:", min_value=1.0, max_value=50.0, value=10.0)
 
-# **Previous Year Data** (Manually entered for now, but can be automated later)
+# **Previous Year Data** (Manually entered for now, can be automated later)
 previous_data = {
-    "Revenue": "9,413,149",
-    "Gross Profit": "1,133,637",
-    "Operating Profit": "888,836",
-    "Net Profit": "365,035",
-    "EPS": "6.40"
+    "Revenue": clean_number("9,413,149"),
+    "Gross Profit": clean_number("1,133,637"),
+    "Operating Profit": clean_number("888,836"),
+    "Net Profit": clean_number("365,035"),
+    "EPS": clean_number("6.40")
 }
 
 if pdf_file:
