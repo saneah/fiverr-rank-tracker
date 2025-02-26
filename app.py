@@ -3,20 +3,24 @@ import pdfplumber
 import re
 import pandas as pd
 
-# Function to extract financial metrics from PDF
+# Function to extract financial metrics from the PDF
 def extract_financials(pdf_file):
     with pdfplumber.open(pdf_file) as pdf:
         text = "\n".join([page.extract_text() for page in pdf.pages if page.extract_text()])
     
-    # Extract financial data using regex
-    revenue = re.findall(r"Revenue[:\s]+([\d,]+)", text)
-    eps = re.findall(r"Earnings Per Share[:\s]+([\d.]+)", text)
-    net_profit = re.findall(r"Net Profit[:\s]+([\d,]+)", text)
+    # Use regex to extract key financial data
+    revenue = re.findall(r"Revenue\s+([\d,]+)", text)
+    gross_profit = re.findall(r"Gross Profit\s+([\d,]+)", text)
+    operating_profit = re.findall(r"Operating Profit\s+([\d,]+)", text)
+    net_profit = re.findall(r"Profit for the year\s+([\d,]+)", text)
+    eps = re.findall(r"Earnings per share\s*\(Rs.\)\s*([\d.]+)", text)
 
     return {
         "Revenue": revenue[0] if revenue else "N/A",
-        "EPS": eps[0] if eps else "N/A",
-        "Net Profit": net_profit[0] if net_profit else "N/A"
+        "Gross Profit": gross_profit[0] if gross_profit else "N/A",
+        "Operating Profit": operating_profit[0] if operating_profit else "N/A",
+        "Net Profit": net_profit[0] if net_profit else "N/A",
+        "EPS": eps[0] if eps else "N/A"
     }
 
 # Function to calculate growth/decline
@@ -36,6 +40,7 @@ def estimate_stock_price(eps, industry_pe):
 
 # Streamlit UI
 st.title("📊 Stock Financial Report Analyzer")
+st.write("Upload a financial report, and we'll extract key financial metrics!")
 
 # File uploader
 pdf_file = st.file_uploader("Upload a Financial Report (PDF)", type=["pdf"])
@@ -43,15 +48,17 @@ pdf_file = st.file_uploader("Upload a Financial Report (PDF)", type=["pdf"])
 # User input for industry P/E ratio
 industry_pe = st.number_input("Enter Industry P/E Ratio:", min_value=1.0, max_value=50.0, value=10.0)
 
-# Previous Financial Data (Manually entered for now)
+# **Previous Year Data** (Manually entered for now, but can be automated later)
 previous_data = {
-    "Revenue": "5,000,000",
-    "EPS": "4.50",
-    "Net Profit": "1,000,000"
+    "Revenue": "9,413,149",
+    "Gross Profit": "1,133,637",
+    "Operating Profit": "888,836",
+    "Net Profit": "365,035",
+    "EPS": "6.40"
 }
 
 if pdf_file:
-    # Extract financial data
+    # Extract financial data from PDF
     financial_data = extract_financials(pdf_file)
 
     # Calculate growth
@@ -69,4 +76,3 @@ if pdf_file:
 
     st.subheader("💰 Expected Stock Price")
     st.write(f"Estimated Fair Value of Stock: **Rs. {expected_price}**")
-
