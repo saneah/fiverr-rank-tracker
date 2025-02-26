@@ -1,6 +1,6 @@
 import streamlit as st
 import requests
-from bs4 import BeautifulSoup4
+from bs4 import BeautifulSoup
 from selenium import webdriver
 from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.common.by import By
@@ -8,18 +8,18 @@ from selenium.webdriver.chrome.options import Options
 import time
 import re
 
-# Function to extract Gig ID from URL
+# Function to extract Gig ID from Fiverr URL
 def extract_gig_id(gig_url):
     match = re.search(r'\/([^\/]+)-\d+$', gig_url)
     return match.group(1) if match else None
 
-# Function to get Fiverr search results
+# Function to get Fiverr search results and find gig ranking
 def get_fiverr_rank(keyword, gig_id):
     chrome_options = Options()
-    chrome_options.add_argument("--headless")  # Run in headless mode
+    chrome_options.add_argument("--headless")  # Run Chrome in headless mode
     chrome_options.add_argument("--disable-gpu")
     
-    service = Service(executable_path="chromedriver")  # Use the correct path to your chromedriver
+    service = Service(executable_path="chromedriver")  # Change path if needed
     driver = webdriver.Chrome(service=service, options=chrome_options)
 
     search_url = f"https://www.fiverr.com/search/gigs?query={keyword}"
@@ -28,7 +28,7 @@ def get_fiverr_rank(keyword, gig_id):
     gig_found = False
     gig_position = -1
 
-    for page in range(1, 6):  # Search up to 5 pages
+    for page in range(1, 6):  # Check up to 5 pages
         time.sleep(3)  # Allow page to load
 
         # Get page source and parse with BeautifulSoup
@@ -45,11 +45,11 @@ def get_fiverr_rank(keyword, gig_id):
             break
 
         # Click "Next Page" if exists
-        next_page = driver.find_element(By.CSS_SELECTOR, "a[rel='next']")
-        if next_page:
+        try:
+            next_page = driver.find_element(By.CSS_SELECTOR, "a[rel='next']")
             next_page.click()
-        else:
-            break
+        except:
+            break  # No more pages to search
 
     driver.quit()
     
@@ -75,4 +75,3 @@ if st.button("Check Rank"):
             st.error("⚠️ Invalid Fiverr gig URL. Please enter a correct URL.")
     else:
         st.error("⚠️ Please enter both the Fiverr Gig URL and the keyword.")
-
